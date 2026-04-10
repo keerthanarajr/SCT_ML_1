@@ -1,54 +1,44 @@
 import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import joblib
+import os
+import numpy as np
 
-# Load dataset
-data = pd.read_csv('train.csv')
+def train_model():
+    # Load Kaggle dataset
+    data = pd.read_csv("train.csv")
 
-# Separate features and target
-X = data.drop('SalePrice', axis=1)
-y = data['SalePrice']
+    # Create bathrooms feature (FullBath + HalfBath * 0.5)
+    data["bathrooms"] = data["FullBath"] + 0.5 * data["HalfBath"]
 
-# Separate categorical and numeric columns
-categorical_cols = X.select_dtypes(include=['object', 'string']).columns
-numeric_cols = X.select_dtypes(exclude=['object', 'string']).columns
+    # Features and target
+    X = data[["GrLivArea", "BedroomAbvGr", "bathrooms"]]
+    y = data["SalePrice"]
 
-# Convert categoricals to string (fix mixed types)
-X[categorical_cols] = X[categorical_cols].astype(str)
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Fill missing values
-X[categorical_cols] = X[categorical_cols].fillna("Missing")
-X[numeric_cols] = X[numeric_cols].fillna(0)
+    # Train model
+    model = LinearRegression()
+    model.fit(X_train, y_train)
 
-# Preprocessor
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_cols),
-        ('num', 'passthrough', numeric_cols)
-    ]
-)
+    # Evaluate
+    y_pred = model.predict(X_test)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    print("RMSE:", rmse)
+    print("R²:", r2_score(y_test, y_pred))
 
-# Build pipeline
-model = Pipeline(steps=[
-    ('preprocessor', preprocessor),
-    ('regressor', LinearRegression())
-])
+    # Save model
+    os.makedirs("production_artifacts", exist_ok=True)
+    joblib.dump(model, "production_artifacts/house_price_model.joblib")
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    return model
 
-# Fit model
-model.fit(X_train, y_train)
+def predict_price(area_sqft, bedrooms, bathrooms):
+    model = joblib.load("production_artifacts/house_price_model.joblib")
+    return model.predict([[area_sqft, bedrooms, bathrooms]])[0]
 
-# Predict
-y_pred = model.predict(X_test)
-
-# Metrics
-print("R² Score:", r2_score(y_test, y_pred))
-print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
-print("MAE:", mean_absolute_error(y_test, y_pred))
+if __name__ == "__main__":
+    train_model()

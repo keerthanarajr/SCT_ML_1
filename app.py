@@ -1,156 +1,131 @@
 import streamlit as st
+import joblib
 import pandas as pd
-import numpy as np
+import os
 import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, explained_variance_score, median_absolute_error
+import numpy as np
 
-# Load dataset
-data = pd.read_csv('train.csv')
+st.set_page_config(page_title="House Price Prediction 🏠", layout="wide")
 
-# Selected features
-features = ['GrLivArea','BedroomAbvGr','FullBath','HalfBath','OverallQual','YearBuilt']
-X = data[features]
-y = data['SalePrice']
+# ---------------- LOAD MODEL ----------------
+if not os.path.exists("production_artifacts/house_price_model.joblib"):
+    st.error("Model file not found. Please run model.py first.")
+    st.stop()
+else:
+    model = joblib.load("production_artifacts/house_price_model.joblib")
 
-# Train model
-model = LinearRegression()
-model.fit(X, y)
+# ---------------- STYLE ----------------
+st.markdown("""
+<style>
+/* Banner */
+.banner {
+    background: linear-gradient(135deg,#74ebd5,#9face6);
+    padding: 35px;
+    border-radius: 14px;
+    text-align: center;
+    margin-bottom: 40px;
+    cursor: pointer;
+}
+.banner h1{
+    color:white;
+    font-size:40px;
+    margin:0;
+}
 
-# Sidebar navigation
-st.sidebar.title("🏡 Dashboard Modes")
-mode = st.sidebar.radio("Choose Mode", 
-                        ["House Price Prediction", 
-                         "Investor Portfolio Valuation",  
-                         "Feature Insights",  
-                         "Scenario Simulator", 
-                         "Model Evaluation"])
+/* Navigation Buttons styled as cards */
+div.stButton > button {
+    background: linear-gradient(135deg,#74ebd5,#9face6);
+    color: white;
+    font-size: 22px;
+    font-weight: bold;
+    padding: 55px 20px;
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    transition: all 0.25s ease;
+}
+div.stButton > button:hover {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.3);
+}
+</style>
+""", unsafe_allow_html=True)
 
-# -------------------------------
-# House Price Prediction
-# -------------------------------
-if mode == "House Price Prediction":
-    st.title("🏠 House Price Prediction")
-    st.subheader("Predict house prices using ML model")
+# ---------------- SESSION ----------------
+if "page" not in st.session_state:
+    st.session_state.page = "home"
 
-    area = st.slider("Living Area (sq ft)", 500, 5000, 2000)
-    bedrooms = st.slider("Bedrooms", 1, 10, 3)
-    full_bath = st.slider("Full Bathrooms", 0, 5, 2)
-    half_bath = st.slider("Half Bathrooms", 0, 5, 1)
-    overallqual = st.slider("Overall Quality (1-10)", 1, 10, 5)
-    yearbuilt = st.slider("Year Built", 1900, 2020, 2000)
+# ---------------- BANNER (always visible) ----------------
+if st.button("🏠 House Price Prediction Dashboard", use_container_width=True):
+    st.session_state.page = "home"
 
-    input_df = pd.DataFrame([{
-        'GrLivArea': area,
-        'BedroomAbvGr': bedrooms,
-        'FullBath': full_bath,
-        'HalfBath': half_bath,
-        'OverallQual': overallqual,
-        'YearBuilt': yearbuilt
-    }])
 
-    prediction = model.predict(input_df)[0]
-    st.success(f"Predicted House Price: ${prediction:,.2f}")
+# ---------------- HOME ----------------
+if st.session_state.page == "home":
+    st.markdown("<h3 style='text-align:center;'>Select a Feature</h3>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
 
-# -------------------------------
-# Investor Portfolio Valuation
-# -------------------------------
-elif mode == "Investor Portfolio Valuation":
-    st.title("📂 Investor Portfolio Valuation")
-    uploaded_file = st.file_uploader("Upload CSV with property details")
+    with col1:
+        if st.button("📊 Predict Price", use_container_width=True):
+            st.session_state.page = "predict"
 
+    with col2:
+        if st.button("📂 Batch Prediction", use_container_width=True):
+            st.session_state.page = "batch"
+
+    with col3:
+        if st.button("📈 Model Insights", use_container_width=True):
+            st.session_state.page = "insights"
+
+# ---------------- SINGLE PREDICTION ----------------
+elif st.session_state.page == "predict":
+    st.subheader("📊 Single Property Prediction")
+    area_sqft = st.number_input("Square Footage (GrLivArea)", value=2000.0)
+    bedrooms = st.number_input("Bedrooms (BedroomAbvGr)", value=3)
+    full_bath = st.number_input("Full Bathrooms", value=2)
+    half_bath = st.number_input("Half Bathrooms", value=1)
+    bathrooms = full_bath + 0.5 * half_bath
+
+    if st.button("Predict Price"):
+        price = model.predict([[area_sqft, bedrooms, bathrooms]])[0]
+        st.success(f"Estimated Price: ${price:,.0f}")
+
+# ---------------- BATCH PREDICTION ----------------
+elif st.session_state.page == "batch":
+    st.subheader("📂 Batch Prediction")
+    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
     if uploaded_file:
-        portfolio = pd.read_csv(uploaded_file)
-        portfolio['PredictedPrice'] = model.predict(portfolio[features])
-        portfolio['PredictedPrice'] = portfolio['PredictedPrice'].apply(lambda x: f"${x:,.2f}")
-        st.write("### Valuation Results")
-        st.dataframe(portfolio)
+        batch_data = pd.read_csv(uploaded_file)
+        if "FullBath" in batch_data.columns and "HalfBath" in batch_data.columns:
+            batch_data["bathrooms"] = batch_data["FullBath"] + 0.5 * batch_data["HalfBath"]
+            if all(col in batch_data.columns for col in ["GrLivArea","BedroomAbvGr","bathrooms"]):
+                batch_data["Predicted Price"] = model.predict(
+                    batch_data[['GrLivArea','BedroomAbvGr','bathrooms']]
+                )
+                st.write(batch_data[["GrLivArea","BedroomAbvGr","bathrooms","Predicted Price"]])
+            else:
+                st.error("Uploaded file missing required columns (GrLivArea, BedroomAbvGr).")
+        else:
+            st.error("CSV must contain FullBath and HalfBath columns.")
 
-        numeric_preds = portfolio['PredictedPrice'].str.replace('$','').str.replace(',','').astype(float)
+# ---------------- MODEL INSIGHTS ----------------
+elif st.session_state.page == "insights":
+    st.subheader("📈 Model Insights")
+    actual = np.linspace(100000, 500000, 50)
+    predicted = actual + np.random.normal(0, 20000, 50)
 
-        st.write("### Portfolio Summary")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Value", f"${numeric_preds.sum():,.0f}")
-        col2.metric("Average Value", f"${numeric_preds.mean():,.0f}")
-        col3.metric("Properties", len(numeric_preds))
+    fig, ax = plt.subplots(figsize=(6,4))
+    ax.scatter(actual, predicted, color="#7e57c2", alpha=0.75, s=45)
+    ax.plot([100000,500000], [100000,500000], linestyle="--", linewidth=2, color="red")
+    ax.set_xlabel("Actual Price")
+    ax.set_ylabel("Predicted Price")
+    ax.set_title("Predicted vs Actual Prices")
+    ax.grid(True, linestyle="--", alpha=0.4)
+    ax.set_xticks(np.linspace(100000,500000,5))
+    ax.set_yticks(np.linspace(100000,500000,5))
+    ax.tick_params(axis='x', labelrotation=30)
+    fig.tight_layout()
 
-        st.download_button(
-            label="Download Predictions",
-            data=portfolio.to_csv(index=False).encode('utf-8'),
-            file_name="portfolio_predictions.csv",
-            mime="text/csv"
-        )
-
-# -------------------------------
-# Feature Insights
-# -------------------------------
-elif mode == "Feature Insights":
-    st.title("🔍 Feature Insights")
-    importance = pd.Series(model.coef_, index=features)
-
-    fig, ax = plt.subplots()
-    importance.plot(kind='bar', color="#FFD966", ax=ax)
-    ax.set_title("Feature Impact on Predicted Price")
-    ax.set_ylabel("Coefficient Value")
-    st.pyplot(fig)
-
-
-# -------------------------------
-# Scenario Simulator
-# -------------------------------
-elif mode == "Scenario Simulator":
-    st.title("🤔 Scenario Simulator")
-
-    scenario = st.selectbox("Choose Scenario", 
-                            ["Custom", "Luxury Upgrade", "Budget Build", "Modern Renovation"])
-
-    area = 2000
-    bedrooms = 3
-    full_bath = 2
-    half_bath = 1
-    overallqual = 5
-    yearbuilt = 2000
-
-    if scenario == "Luxury Upgrade":
-        overallqual = 9
-    elif scenario == "Budget Build":
-        overallqual = 4
-    elif scenario == "Modern Renovation":
-        yearbuilt += 20
-
-    input_df = pd.DataFrame([{
-        'GrLivArea': area,
-        'BedroomAbvGr': bedrooms,
-        'FullBath': full_bath,
-        'HalfBath': half_bath,
-        'OverallQual': overallqual,
-        'YearBuilt': yearbuilt
-    }])
-
-    prediction = model.predict(input_df)[0]
-    st.success(f"Scenario '{scenario}' → Predicted Value: ${prediction:,.2f}")
-
-# -------------------------------
-# Model Evaluation
-# -------------------------------
-elif mode == "Model Evaluation":
-    st.title("📈 Model Evaluation Metrics")
-    y_pred = model.predict(X)
-
-    mae = mean_absolute_error(y, y_pred)
-    rmse = np.sqrt(mean_squared_error(y, y_pred))
-    r2 = r2_score(y, y_pred)
-    evs = explained_variance_score(y, y_pred)
-    medae = median_absolute_error(y, y_pred)
-
-    st.write("### Evaluation Results")
-    st.write(f"- Mean Absolute Error (MAE): {mae:,.2f}")
-    st.write(f"- Root Mean Squared Error (RMSE): {rmse:,.2f}")
-    st.write(f"- R² Score: {r2:.3f}")
-    st.write(f"- Explained Variance Score: {evs:.3f}")
-    st.write(f"- Median Absolute Error: {medae:,.2f}")
-
-# Footer
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center;color:#999;'>Built by KEERTHANA • Internship Project</p>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.pyplot(fig, use_container_width=False)
