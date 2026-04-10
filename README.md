@@ -9,18 +9,17 @@ Built with **Python, scikit-learn, Streamlit, Seaborn, and Matplotlib**.
 This project demonstrates how machine learning can be applied to real estate valuation.  
 It includes:
 - A regression model trained on housing data.
-- Interactive dashboard modes for prediction, portfolio valuation, feature insights, scenario simulation, and model evaluation.
+- Interactive dashboard modes for single property prediction, batch valuation, and model insights.
 - Clean pastel visuals for professional presentation.
 
 ---
 
 ## ⚙️ Features
-- **House Price Prediction**: Estimate sale price based on property features.
-- **Investor Portfolio Valuation**: Upload a CSV of multiple properties and get predicted values with summary KPIs.
-- **Feature Insights**: Visualize feature importance using regression coefficients.
-- **Scenario Simulator**: Explore “Luxury Upgrade,” “Budget Build,” and “Modern Renovation” what‑if cases.
-- **Model Evaluation**: Includes alternative metrics (Median AE, Explained Variance, MAPE) for deeper analysis.
-- **CSV Export**: Download predictions for further analysis.
+- **📊 Single Property Prediction**: Enter property details (square footage, bedrooms, bathrooms) and get an estimated sale price.
+- **📂 Batch Prediction**: Upload a CSV file of multiple properties and generate predicted values for each.
+- **📈 Model Insights**: Visualize predicted vs. actual prices with scatter plots and regression lines.
+- **Gradient Banner Navigation**: A single pastel gradient banner acts as the main title and navigation back to Home.
+- **Clean UI**: Big clickable feature cards with hover effects, consistent pastel palette, and clutter-free layout.
 
 ---
 
@@ -31,34 +30,28 @@ It includes:
   - BedroomAbvGr (Bedrooms)
   - FullBath (Full Bathrooms)
   - HalfBath (Half Bathrooms)
-  - OverallQual (Overall Quality)
-  - YearBuilt (Construction Year)
 
-- **Evaluation Metrics** (fill in after running):
-  - Mean Absolute Error (MAE): `XX`
-  - Root Mean Squared Error (RMSE): `XX`
-  - Median Absolute Error: `XX`
-  - Explained Variance Score: `XX`
-  - R² Score: `XX`
+- **Workflow**:
+  - Train the model using `model.py`.
+  - Save the trained model into `production_artifacts/house_price_model.joblib`.
+  - Load the model in `app.py` for predictions.
 
 ---
 
 ## 🖼️ Dashboard Screenshots
 
-### House Price Prediction
-![House Price Prediction](screenshots/prediction.png)
 
-### Investor Portfolio Valuation
-![Portfolio Valuation](screenshots/portfolio.png)
+### Home Page
+![Home Page](screenshots/home.png)
 
-### Feature Insights
-![Feature Insights](screenshots/feature_insights.png)
+### Single Property Prediction
+![Prediction Page](screenshots/prediction.png)
 
-### Scenario Simulator
-![Scenario Simulator](screenshots/scenario.png)
+### Batch Prediction
+![Batch Page](screenshots/batch.png)
 
-### Model Evaluation
-![Model Evaluation](screenshots/evaluation.png)
+### Model Insights
+![Insights Page](screenshots/insights.png)
 
 
 ---
@@ -68,3 +61,17 @@ It includes:
    ```bash
    git clone https://github.com/keerthanarajr/SCT_ML_1.git
    cd SCT_ML_1
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Train the model (if not already saved):
+   ```bash
+   python model.py
+   ```
+4. Launch the dashboard:
+   ```bash
+   streamlit run app.py
+   ```
+5. Open the app in your browser at `http://localhost:8501`.

@@ -24,12 +24,7 @@ def train_model():
     model = LinearRegression()
     model.fit(X_train, y_train)
 
-    # Evaluate
-    y_pred = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    print("RMSE:", rmse)
-    print("R²:", r2_score(y_test, y_pred))
-
+    
     # Save model
     os.makedirs("production_artifacts", exist_ok=True)
     joblib.dump(model, "production_artifacts/house_price_model.joblib")
